@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+*.db
+*.db-journal
+*.p8
+*.jks
+*.keystore
+service-account*.json
+.dart_tool/
+build/
+.flutter-plugins*

@@ -6,8 +6,19 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "android": { "package": "dhp.fatties.vocab" },
-    "ios": { "bundleIdentifier": "dhp.fatties.vocab", "supportsTablet": true },
-    "web": { "bundler": "metro" }
+    "android": {
+      "package": "dhp.fatties.vocab"
+    },
+    "ios": {
+      "bundleIdentifier": "dhp.fatties.vocab",
+      "supportsTablet": true
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font"
+    ]
   }
 }

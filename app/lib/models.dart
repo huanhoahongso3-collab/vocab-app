@@ -91,6 +91,20 @@ class Me {
         customTopics = j['limits']['customTopics'] as bool,
         canSync = j['limits']['sync'] as bool;
 
+  /// Local demo account: everything unlocked, no server involved.
+  Me.demo()
+      : email = 'demo@local',
+        name = 'Demo',
+        emailVerified = true,
+        premium = true,
+        expiresAt = null,
+        quotaRemaining = 99,
+        quotaLimit = 99,
+        maxWordsPerGen = 8,
+        levels = const ['B2', 'C1'],
+        customTopics = true,
+        canSync = false;
+
   final String email, name;
   final bool emailVerified, premium, customTopics, canSync;
   final int? expiresAt;

@@ -28,7 +28,7 @@ class _AccountScreenState extends State<AccountScreen> {
   String? message;
   bool busy = false;
 
-  bool get storeSupported => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+  bool get storeSupported => !demoMode && !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
   @override
   void initState() {
@@ -136,7 +136,7 @@ class _AccountScreenState extends State<AccountScreen> {
       if (me.canSync) OutlinedButton.icon(onPressed: busy ? null : sync, icon: const Icon(Icons.sync), label: const Text('Đồng bộ từ đã lưu')),
       if (message != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(message!)),
       const Divider(height: 32),
-      TextButton.icon(onPressed: widget.onSignOut, icon: const Icon(Icons.logout), label: const Text('Đăng xuất')),
+      if (demoMode) const Text('Bản demo: dữ liệu mẫu, không cần tài khoản hay máy chủ. Mọi tính năng Premium đang được mở.', textAlign: TextAlign.center) else TextButton.icon(onPressed: widget.onSignOut, icon: const Icon(Icons.logout), label: const Text('Đăng xuất')),
     ]);
   }
 }

@@ -1,0 +1,30 @@
+name: Build demo APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['app/**', '.github/workflows/apk.yml']
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - name: Generate platform folders (app id dhp.fatties.vocab)
+        working-directory: app
+        run: flutter create --org dhp.fatties --project-name vocab --platforms=android,web .
+      - run: flutter pub get
+        working-directory: app
+      - run: flutter analyze
+        working-directory: app
+        continue-on-error: true
+      - name: Build demo APK (no login, no server)
+        working-directory: app
+        run: flutter build apk --release --dart-define=DEMO=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vocab-demo-apk
+          path: app/build/app/outputs/flutter-apk/app-release.apk

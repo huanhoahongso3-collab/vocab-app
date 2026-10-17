@@ -1,11 +1,15 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'demo_data.dart';
 import 'models.dart';
 
 /// Override at build time: flutter run --dart-define=API_URL=https://api.example.com
 /// (10.0.2.2 is the host machine as seen from the Android emulator.)
 const apiUrl = String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:3000');
+
+/// Demo build: flutter build apk --dart-define=DEMO=true. No login, no server, sample data only.
+const demoMode = bool.fromEnvironment('DEMO');
 
 class ApiError implements Exception {
   ApiError(this.code, this.message, {this.status});
@@ -52,7 +56,7 @@ class ApiClient {
   late final Dio _dio;
   String? _access, _refresh;
 
-  bool get loggedIn => _refresh != null;
+  bool get loggedIn => demoMode || _refresh != null;
 
   Future<void> _setTokens(Map<String, dynamic> j) async {
     _access = j['access_token'] as String;
@@ -102,10 +106,18 @@ class ApiClient {
       _call(() => _dio.post('/auth/reset-password', data: {'email': email, 'code': code, 'new_password': newPassword}), (_) {});
 
   // ---- data ----
-  Future<Me> me() => _call(() => _dio.get('/me'), (d) => Me.fromJson(d as Map<String, dynamic>));
-  Future<List<String>> topics() => _call(() => _dio.get('/vocab/topics'), (d) => ((d as Map)['topics'] as List).cast<String>());
+  Future<Me> me() => demoMode ? Future.value(Me.demo()) : _call(() => _dio.get('/me'), (d) => Me.fromJson(d as Map<String, dynamic>));
+  Future<List<String>> topics() => demoMode ? Future.value(demoTopics) : _call(() => _dio.get('/vocab/topics'), (d) => ((d as Map)['topics'] as List).cast<String>());
 
-  Future<List<VocabWord>> generate(String level, String topic, int count) => _call(
+  Future<List<VocabWord>> generate(String level, String topic, int count) async {
+    if (demoMode) {
+      await Future<void>.delayed(const Duration(milliseconds: 900)); // feel like a real request
+      return demoGenerate(level, topic, count);
+    }
+    return _generate(level, topic, count);
+  }
+
+  Future<List<VocabWord>> _generate(String level, String topic, int count) => _call(
         () => _dio.post('/vocab/generate', data: {'level': level, 'topic': topic, 'count': count}),
         (d) => ((d as Map)['words'] as List)
             .map((w) => VocabWord.fromApi((w as Map).cast<String, dynamic>(), level: level, topic: topic))

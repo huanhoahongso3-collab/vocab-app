@@ -1,3 +1,4 @@
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 
 import 'api.dart';
@@ -20,12 +21,63 @@ class VocabApp extends StatelessWidget {
   final ApiClient api;
   final SavedStore store;
 
+  /// Material 3 with Expressive traits: wallpaper-based dynamic color (Android 12+),
+  /// large rounded shapes, tonal surfaces and bold type. Flutter has no stable
+  /// Material 3 Expressive component set yet, so these are approximated in the theme.
+  static ThemeData _theme(ColorScheme scheme) {
+    final base = ThemeData(colorScheme: scheme, useMaterial3: true);
+    const big = BorderRadius.all(Radius.circular(28));
+    return base.copyWith(
+      scaffoldBackgroundColor: scheme.surface,
+      textTheme: base.textTheme.copyWith(
+        headlineMedium: base.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5),
+        headlineSmall: base.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+        titleMedium: base.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+      ),
+      cardTheme: CardThemeData(
+        elevation: 0,
+        color: scheme.surfaceContainerHigh,
+        margin: const EdgeInsets.symmetric(vertical: 5),
+        shape: const RoundedRectangleBorder(borderRadius: big),
+        clipBehavior: Clip.antiAlias,
+      ),
+      expansionTileTheme: const ExpansionTileThemeData(
+        shape: RoundedRectangleBorder(borderRadius: big),
+        collapsedShape: RoundedRectangleBorder(borderRadius: big),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56), shape: const StadiumBorder(), textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: const StadiumBorder())),
+      chipTheme: base.chipTheme.copyWith(shape: const StadiumBorder(), side: BorderSide.none, backgroundColor: scheme.surfaceContainerHighest, selectedColor: scheme.primaryContainer),
+      segmentedButtonTheme: SegmentedButtonThemeData(style: SegmentedButton.styleFrom(minimumSize: const Size.fromHeight(52), textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+      inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder(borderRadius: big)),
+      navigationBarTheme: NavigationBarThemeData(
+        height: 76,
+        backgroundColor: scheme.surfaceContainer,
+        indicatorColor: scheme.secondaryContainer,
+        indicatorShape: const StadiumBorder(),
+        labelTextStyle: WidgetStatePropertyAll(base.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700)),
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+      }),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'Vocab B2/C1',
-        theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
-        darkTheme: ThemeData(colorSchemeSeed: Colors.indigo, brightness: Brightness.dark, useMaterial3: true),
-        home: Gate(api: api, store: store),
+  Widget build(BuildContext context) => DynamicColorBuilder(
+        builder: (lightDynamic, darkDynamic) {
+          final light = lightDynamic ?? ColorScheme.fromSeed(seedColor: const Color(0xFF5B5BD6));
+          final dark = darkDynamic ?? ColorScheme.fromSeed(seedColor: const Color(0xFF5B5BD6), brightness: Brightness.dark);
+          return MaterialApp(
+            title: 'Vocab B2/C1',
+            debugShowCheckedModeBanner: false,
+            theme: _theme(light),
+            darkTheme: _theme(dark),
+            home: Gate(api: api, store: store),
+          );
+        },
       );
 }
 

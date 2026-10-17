@@ -38,15 +38,18 @@ Billing: the app sends the store purchase token/transaction id; the server re-fe
 (Google RTDN, Apple v2) only trigger a re-fetch, so forged notifications change nothing.
 Create a subscription product with id `premium_monthly` in both stores.
 
-## App (`app/`)
+## App (`app/`) – React Native (Expo) + Material 3 (react-native-paper)
 
-Platform folders are not committed; generate them once (this also sets the app id to `dhp.fatties.vocab`):
+Android, iOS and Web from one codebase. Colors follow the wallpaper on Android 12+ (Material You).
 
 ```bash
 cd app
-flutter create --org dhp.fatties --project-name vocab --platforms=android,ios,web .
-flutter pub get
-flutter run --dart-define=API_URL=http://10.0.2.2:3000     # Android emulator -> host machine
+npm install
+EXPO_PUBLIC_DEMO=true npx expo start        # demo: no login, no server, sample words
+EXPO_PUBLIC_API_URL=https://your-api npx expo start   # real mode (use https)
 ```
 
-Note: in-app purchases work on Android/iOS only; the web build can sign in and generate but cannot buy.
+Demo APK: GitHub Actions workflow "Build demo APK" (Actions tab -> Artifacts -> `vocab-demo-apk`).
+
+In-app purchase is not wired in the React Native app yet: `api.verifyGoogle/verifyApple` and the server endpoints exist,
+the purchase flow itself (e.g. `react-native-iap`) still has to be added.

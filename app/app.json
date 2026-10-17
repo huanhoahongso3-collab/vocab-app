@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Vocab B2/C1",
+    "slug": "vocab-b2-c1",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "android": { "package": "dhp.fatties.vocab" },
+    "ios": { "bundleIdentifier": "dhp.fatties.vocab", "supportsTablet": true },
+    "web": { "bundler": "metro" }
+  }
+}

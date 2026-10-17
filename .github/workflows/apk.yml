@@ -7,24 +7,25 @@ on:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    env:
+      EXPO_PUBLIC_DEMO: 'true'
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: app/package-lock.json }
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17' }
-      - uses: subosito/flutter-action@v2
-        with: { channel: stable, cache: true }
-      - name: Generate platform folders (app id dhp.fatties.vocab)
-        working-directory: app
-        run: flutter create --org dhp.fatties --project-name vocab --platforms=android,web .
-      - run: flutter pub get
-        working-directory: app
-      - run: flutter analyze
-        working-directory: app
-        continue-on-error: true
-      - name: Build demo APK (no login, no server)
-        working-directory: app
-        run: flutter build apk --release --dart-define=DEMO=true
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - name: Generate Android project (package dhp.fatties.vocab)
+        run: npx expo prebuild --platform android --no-install
+      - name: Build release APK (demo: no login, no server)
+        working-directory: app/android
+        run: ./gradlew assembleRelease --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: vocab-demo-apk
-          path: app/build/app/outputs/flutter-apk/app-release.apk
+          path: app/android/app/build/outputs/apk/release/app-release.apk

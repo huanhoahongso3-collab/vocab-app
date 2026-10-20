@@ -1,66 +1,144 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Button, Chip, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Button, Chip, Dialog, IconButton, Menu, Portal, RadioButton, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
 import { api, ApiError } from '../api';
 import type { Me, VocabWord } from '../models';
 import { FREE_SAVED_LIMIT, useSaved } from '../store';
 import { BIG } from '../theme';
 import { WordCard } from './WordCard';
 
+const CEFR_LEVELS = [
+  { value: 'ALL', label: 'Tất cả' },
+  { value: 'A1', label: 'A1' },
+  { value: 'A2', label: 'A2' },
+  { value: 'B1', label: 'B1' },
+  { value: 'B2', label: 'B2' },
+  { value: 'C1', label: 'C1' },
+  { value: 'C2', label: 'C2' },
+];
+
 export function GenerateScreen({ me, onChanged, notify }: { me: Me; onChanged: () => Promise<void>; notify: (m: string) => void }) {
   const theme = useTheme();
-  const saved = useSaved();
-  const [level, setLevel] = useState('B2');
+  const { saved, docs, t, lang } = useSaved() as any;
+  const store = useSaved();
+  const [level, setLevel] = useState('ALL');
   const [topic, setTopic] = useState<string | null>(null);
   const [custom, setCustom] = useState('');
   const [topics, setTopics] = useState<string[]>([]);
   const [words, setWords] = useState<VocabWord[]>([]);
+  const [wordCount, setWordCount] = useState(8);
+  const [targetDocId, setTargetDocId] = useState<string>(store.docs[0]?.id || 'doc-untitled');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDocDialog, setShowDocDialog] = useState(false);
 
   useEffect(() => {
     api.topics().then(setTopics).catch(() => {});
   }, []);
 
   const chosen = custom.trim() || topic;
-  const upsell = (m: string) => notify(`${m} Vào tab Tài khoản để nâng cấp Premium.`);
+  const currentDoc = store.docs.find((d) => d.id === targetDocId) || store.docs[0];
 
   async function generate() {
-    if (!chosen) return setError('Hãy chọn hoặc nhập một chủ đề.');
+    if (!chosen) return setError(store.t('topicRequired'));
     setBusy(true);
     setError(null);
     try {
-      setWords(await api.generate(level, chosen, me.maxWordsPerGen));
-      await onChanged(); // refresh remaining quota
+      const generated = await api.generate(level, chosen, wordCount);
+      // Attach target doc to generated words
+      const withDoc = generated.map((w) => ({ ...w, docId: targetDocId }));
+      setWords(withDoc);
+      await onChanged();
+      notify(store.t('generationSuccess', { count: generated.length }));
     } catch (e) {
       const err = e as ApiError;
-      if (err.code === 'premium_required') upsell(err.message);
-      else setError(err.code === 'quota_exceeded' ? 'Bạn đã dùng hết lượt hôm nay. Quay lại vào ngày mai hoặc nâng cấp Premium.' : err.message);
+      setError(err.message);
     } finally {
       setBusy(false);
     }
   }
 
   async function toggleSave(w: VocabWord) {
-    if (saved.has(w.id)) await saved.remove(w.id);
-    else if (!(await saved.save(w, me.premium))) upsell(`Gói miễn phí lưu tối đa ${FREE_SAVED_LIMIT} từ.`);
+    if (store.has(w.id)) {
+      await store.remove(w.id);
+    } else {
+      const ok = await store.save(w, me.premium, targetDocId);
+      if (!ok) notify(`Gói miễn phí lưu tối đa ${FREE_SAVED_LIMIT} từ.`);
+    }
   }
 
   return (
     <ScrollView contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
-      <Text variant="headlineMedium">Học từ vựng{'\n'}B2 · C1</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text variant="headlineMedium" style={styles.headerTitle}>{store.t('heroTitle')}</Text>
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+          {store.t('heroSubtitle')}
+        </Text>
+      </View>
 
-      <Text variant="titleMedium" style={styles.label}>Level</Text>
-      <SegmentedButtons
-        value={level}
-        onValueChange={(v) => (me.levels.includes(v) ? setLevel(v) : upsell(`Level ${v} chỉ có trong Premium.`))}
-        buttons={[
-          { value: 'B2', label: 'B2' },
-          { value: 'C1', label: 'C1', icon: me.levels.includes('C1') ? undefined : 'lock' },
-        ]}
-      />
+      {/* Target Document Selector */}
+      <View style={[styles.targetDocCard, { backgroundColor: theme.colors.elevation.level1 }]}>
+        <View style={{ flex: 1 }}>
+          <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
+            {store.t('targetDocLabel')}
+          </Text>
+          <Text variant="titleMedium" style={{ fontWeight: '700', marginTop: 2 }}>
+            {currentDoc?.title || 'Untitled Document'}
+          </Text>
+        </View>
+        <Button
+          mode="contained-tonal"
+          icon="folder-outline"
+          compact
+          onPress={() => setShowDocDialog(true)}
+          style={{ borderRadius: 999 }}
+        >
+          Đổi
+        </Button>
+      </View>
 
-      <Text variant="titleMedium" style={styles.label}>Chủ đề</Text>
+      {/* CEFR Level Selector (A1 -> C2) */}
+      <Text variant="titleMedium" style={styles.label}>{store.t('levelLabel')}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.levelRow}>
+        {CEFR_LEVELS.map((item) => {
+          const isSelected = level === item.value;
+          return (
+            <Chip
+              key={item.value}
+              selected={isSelected}
+              showSelectedCheck
+              mode={isSelected ? 'flat' : 'outlined'}
+              onPress={() => setLevel(item.value)}
+              style={[styles.levelChip, isSelected && { backgroundColor: theme.colors.primaryContainer }]}
+              textStyle={[styles.levelChipText, isSelected && { color: theme.colors.onPrimaryContainer, fontWeight: '700' }]}
+            >
+              {item.value === 'ALL' ? (store.lang === 'en' ? 'All (A1-C2)' : 'Tất cả (A1-C2)') : item.label}
+            </Chip>
+          );
+        })}
+      </ScrollView>
+
+      {/* Word Count */}
+      <View style={styles.wordCountRow}>
+        <Text variant="titleMedium" style={{ flex: 1 }}>{store.t('wordCountLabel')}</Text>
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          {[5, 8, 12, 16].map((num) => (
+            <Chip
+              key={num}
+              compact
+              selected={wordCount === num}
+              onPress={() => setWordCount(num)}
+              style={{ borderRadius: 999 }}
+            >
+              {num}
+            </Chip>
+          ))}
+        </View>
+      </View>
+
+      {/* Topics */}
+      <Text variant="titleMedium" style={styles.label}>{store.t('topicLabel')}</Text>
       <View style={styles.chips}>
         {topics.map((t) => (
           <Chip
@@ -77,49 +155,102 @@ export function GenerateScreen({ me, onChanged, notify }: { me: Me; onChanged: (
           </Chip>
         ))}
       </View>
+
+      {/* Custom Topic Input */}
       <TextInput
         mode="outlined"
-        label={me.customTopics ? 'Hoặc nhập chủ đề bất kỳ' : 'Chủ đề tự nhập (Premium)'}
+        placeholder={store.t('customTopicPlaceholder')}
         value={custom}
         onChangeText={setCustom}
-        disabled={!me.customTopics}
         maxLength={60}
-        left={me.customTopics ? undefined : <TextInput.Icon icon="lock" />}
+        left={<TextInput.Icon icon="pencil-outline" />}
         outlineStyle={{ borderRadius: BIG }}
         style={{ marginTop: 12 }}
       />
 
+      {/* CTA Button */}
       <Button
         mode="contained"
-        icon="auto-fix"
+        icon="sparkles"
         onPress={generate}
         disabled={busy}
+        loading={busy}
         contentStyle={styles.bigBtn}
         style={styles.cta}
-        labelStyle={{ fontSize: 17, fontWeight: '700' }}
+        labelStyle={{ fontSize: 16, fontWeight: '700' }}
       >
-        {busy ? 'AI đang tạo…' : `Tạo ${me.maxWordsPerGen} từ`}
+        {busy ? store.t('btnGenerating') : `${store.t('btnGenerate')} (${wordCount} từ)`}
       </Button>
-      <Text variant="bodySmall" style={{ textAlign: 'center', marginTop: 6 }}>
-        Còn {me.quotaRemaining}/{me.quotaLimit} lượt hôm nay
-      </Text>
-      {busy && <ActivityIndicator style={{ marginTop: 16 }} />}
-      {error && <Text style={{ color: theme.colors.error, marginTop: 8 }}>{error}</Text>}
 
-      <View style={{ marginTop: 16 }}>
+      <Text variant="bodySmall" style={{ textAlign: 'center', marginTop: 8, color: theme.colors.outline }}>
+        {store.t('remainingQuota', { remaining: me.quotaRemaining, limit: me.quotaLimit })}
+      </Text>
+
+      {error && <Text style={{ color: theme.colors.error, marginTop: 8, textAlign: 'center' }}>{error}</Text>}
+
+      {/* Generated Cards */}
+      <View style={{ marginTop: 20 }}>
         {words.map((w) => (
-          <WordCard key={w.id} word={w} saved={saved.has(w.id)} onToggleSave={() => toggleSave(w)} />
+          <WordCard
+            key={w.id}
+            word={w}
+            saved={store.has(w.id)}
+            onToggleSave={() => toggleSave(w)}
+            onSelectDoc={(dId) => {
+              setWords((prev) => prev.map((item) => (item.id === w.id ? { ...item, docId: dId } : item)));
+            }}
+          />
         ))}
       </View>
+
+      {/* Target doc dialog */}
+      <Portal>
+        <Dialog visible={showDocDialog} onDismiss={() => setShowDocDialog(false)} style={{ borderRadius: 20 }}>
+          <Dialog.Title>{store.t('targetDocLabel')}</Dialog.Title>
+          <Dialog.Content>
+            {store.docs.map((d) => (
+              <RadioButton.Item
+                key={d.id}
+                label={d.title}
+                value={d.id}
+                status={targetDocId === d.id ? 'checked' : 'unchecked'}
+                onPress={() => {
+                  setTargetDocId(d.id);
+                  setShowDocDialog(false);
+                }}
+              />
+            ))}
+          </Dialog.Content>
+        </Dialog>
+      </Portal>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  pad: { padding: 20, paddingBottom: 40 },
-  label: { marginTop: 20, marginBottom: 8 },
+  pad: { padding: 18, paddingBottom: 50 },
+  header: { marginBottom: 16 },
+  headerTitle: { fontWeight: '800', letterSpacing: -0.5 },
+  targetDocCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  label: { marginTop: 14, marginBottom: 8, fontWeight: '700' },
+  levelRow: { flexDirection: 'row', gap: 8, paddingBottom: 4 },
+  levelChip: { borderRadius: 999 },
+  levelChipText: { fontSize: 13 },
+  wordCountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 4,
+  },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderRadius: 999 },
-  bigBtn: { height: 58 },
-  cta: { marginTop: 20, borderRadius: 999 },
+  bigBtn: { height: 54 },
+  cta: { marginTop: 18, borderRadius: 999 },
 });
+

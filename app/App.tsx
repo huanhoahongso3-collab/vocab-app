@@ -86,31 +86,42 @@ function Center({ children }: { children: React.ReactNode }) {
   return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>{children}</View>;
 }
 
+import { ReviewScreen } from './src/screens/ReviewScreen';
+
 function Home({ me, onChanged, onSignOut }: { me: Me; onChanged: () => Promise<void>; onSignOut: () => Promise<void> }) {
+  const { t } = useSaved();
   const [index, setIndex] = useState(0);
   const [snack, setSnack] = useState<string | null>(null);
+
   const routes = [
-    { key: 'gen', title: 'Tạo từ', focusedIcon: 'auto-fix', unfocusedIcon: 'auto-fix' },
-    { key: 'saved', title: 'Đã lưu', focusedIcon: 'bookmark', unfocusedIcon: 'bookmark-outline' },
-    { key: 'account', title: 'Tài khoản', focusedIcon: 'account-circle', unfocusedIcon: 'account-circle-outline' },
+    { key: 'gen', title: t('tabGen'), focusedIcon: 'sparkles', unfocusedIcon: 'sparkles-outline' },
+    { key: 'revise', title: t('tabRevise'), focusedIcon: 'cards', unfocusedIcon: 'cards-outline' },
+    { key: 'saved', title: t('tabSaved'), focusedIcon: 'bookmark-multiple', unfocusedIcon: 'bookmark-multiple-outline' },
+    { key: 'account', title: t('tabAccount'), focusedIcon: 'cog', unfocusedIcon: 'cog-outline' },
   ];
+
   return (
     <>
       <BottomNavigation
         navigationState={{ index, routes }}
         onIndexChange={setIndex}
         sceneAnimationEnabled
-        renderScene={({ route }) =>
-          route.key === 'gen' ? (
-            <GenerateScreen me={me} onChanged={onChanged} notify={setSnack} />
-          ) : route.key === 'saved' ? (
-            <SavedScreen />
-          ) : (
-            <AccountScreen me={me} onSignOut={onSignOut} />
-          )
-        }
+        renderScene={({ route }) => {
+          switch (route.key) {
+            case 'gen':
+              return <GenerateScreen me={me} onChanged={onChanged} notify={setSnack} />;
+            case 'revise':
+              return <ReviewScreen onNavigateGenerate={() => setIndex(0)} />;
+            case 'saved':
+              return <SavedScreen />;
+            case 'account':
+              return <AccountScreen me={me} onSignOut={onSignOut} />;
+            default:
+              return null;
+          }
+        }}
       />
-      <Snackbar visible={!!snack} onDismiss={() => setSnack(null)} duration={4000} style={{ borderRadius: 20 }}>
+      <Snackbar visible={!!snack} onDismiss={() => setSnack(null)} duration={3500} style={{ borderRadius: 20 }}>
         {snack ?? ''}
       </Snackbar>
     </>

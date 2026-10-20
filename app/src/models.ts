@@ -1,3 +1,31 @@
+export interface CustomDoc {
+  id: string;
+  title: string;
+  description?: string;
+  color: string;
+  icon: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ReminderSettings {
+  enabled: boolean;
+  time: string; // e.g. "20:00"
+  message: string; // customized reminder text
+  streakDays: number;
+  lastStudiedDate: string; // "YYYY-MM-DD"
+  dailyGoal: number; // e.g. 10 words
+  reviewedToday: number;
+  autoSpeak: boolean; // auto play pronunciation on flashcards
+}
+
+export interface UserSettings {
+  defaultLevel: string; // 'A1', 'A2', 'B1', 'B2', 'C1', 'C2', or 'ALL'
+  showIpa: boolean;
+  showViExample: boolean;
+  lang: 'vi' | 'en';
+}
+
 export interface VocabWord {
   id: string;
   word: string;
@@ -12,6 +40,10 @@ export interface VocabWord {
   topic: string;
   updatedAt: number;
   deleted: boolean;
+  docId?: string; // id of CustomDoc ("untitled document", etc.)
+  mastered?: boolean;
+  lastReviewedAt?: number;
+  reviewCount?: number;
 }
 
 /** Deterministic id so the same word saved on two devices merges instead of duplicating. */
@@ -32,6 +64,8 @@ export function wordFromApi(j: any, level: string, topic: string): VocabWord {
     topic,
     updatedAt: Date.now(),
     deleted: false,
+    mastered: false,
+    reviewCount: 0,
   };
 }
 
@@ -39,6 +73,7 @@ export function wordFromApi(j: any, level: string, topic: string): VocabWord {
 export const wordToData = (w: VocabWord) => ({
   word: w.word, ipa: w.ipa, pos: w.pos, meaning_vi: w.meaningVi, definition_en: w.definitionEn,
   example_en: w.exampleEn, example_vi: w.exampleVi, collocations: w.collocations, level: w.level, topic: w.topic,
+  doc_id: w.docId, mastered: w.mastered,
 });
 
 export const wordToChange = (w: VocabWord) => ({ id: w.id, data: wordToData(w), updated_at: w.updatedAt, deleted: w.deleted });
@@ -49,6 +84,7 @@ export function wordFromChange(c: any): VocabWord {
     id: c.id, word: d.word ?? '', ipa: d.ipa ?? '', pos: d.pos ?? '', meaningVi: d.meaning_vi ?? '',
     definitionEn: d.definition_en ?? '', exampleEn: d.example_en ?? '', exampleVi: d.example_vi ?? '',
     collocations: d.collocations ?? [], level: d.level ?? 'B2', topic: d.topic ?? '',
+    docId: d.doc_id, mastered: !!d.mastered,
     updatedAt: c.updated_at, deleted: !!c.deleted,
   };
 }
@@ -85,6 +121,6 @@ export function meFromApi(j: any): Me {
 
 /** Local demo account: everything unlocked, no server involved. */
 export const demoMe: Me = {
-  email: 'demo@local', name: 'Demo', emailVerified: true, premium: true, expiresAt: null,
-  quotaRemaining: 99, quotaLimit: 99, maxWordsPerGen: 8, levels: ['B2', 'C1'], customTopics: true, canSync: false,
+  email: 'demo@local', name: 'Demo Học Viên', emailVerified: true, premium: true, expiresAt: null,
+  quotaRemaining: 99, quotaLimit: 99, maxWordsPerGen: 12, levels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'], customTopics: true, canSync: false,
 };
